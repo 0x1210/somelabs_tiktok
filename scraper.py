@@ -23,6 +23,7 @@ def setup_chrome_options():
     chrome_options.add_argument('--no-sandbox')
     chrome_options.add_argument('--disable-dev-shm-usage')
     chrome_options.add_argument('--disable-gpu')
+    chrome_options.add_argument('--window-size=1920,1080')
     
     # Add user agent
     chrome_options.add_argument('user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
@@ -45,6 +46,21 @@ def get_chrome_driver():
         print(f"Error setting up Chrome driver: {e}")
         raise
 
+def convert_to_number(text):
+    """
+    Convert TikTok formatted numbers (like 830.4K, 19.3M) to actual numbers
+    """
+    if not text:
+        return 0
+    
+    multipliers = {'K': 1000, 'M': 1000000, 'B': 1000000000}
+    text = text.strip().upper()
+    
+    if text[-1] in multipliers:
+        number = float(text[:-1]) * multipliers[text[-1]]
+        return int(number)
+    return int(text.replace(',', ''))
+
 def get_tiktok_info(url):
     """
     Scrape TikTok profile information
@@ -60,19 +76,15 @@ def get_tiktok_info(url):
     
     driver = None
     try:
-        # Initialize driver with platform-specific setup
         driver = get_chrome_driver()
         print("Browser started successfully...")
         
-        # Set page load timeout
         driver.set_page_load_timeout(30)
         
         print(f"Loading URL: {url}")
         driver.get(url)
-        
-        # Wait for page load
         time.sleep(5)
-        
+
         # Try to get name
         try:
             name_element = WebDriverWait(driver, 10).until(
@@ -104,20 +116,46 @@ def get_tiktok_info(url):
         except Exception as e:
             print(f"No website link found: {e}")
 
-        # Try to get email from bio
+        # Try to get email from bio with "more" button handling
         try:
+            print("Attempting to extract bio and email...")
+            
+            # First try to click "more" button if it exists
+            try:
+                more_button = WebDriverWait(driver, 5).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, "[data-e2e='expand-button']"))
+                )
+                more_button.click()
+                print("Expanded bio by clicking 'more' button")
+                time.sleep(1)  # Wait for expansion
+            except Exception as e:
+                print("No 'more' button found or couldn't click it:", e)
+            
+            # Now get the expanded bio content
             bio_element = WebDriverWait(driver, 10).until(
                 EC.presence_of_element_located((By.CSS_SELECTOR, "[data-e2e='user-bio']"))
             )
             bio_text = bio_element.text
+            bio_html = bio_element.get_attribute('innerHTML')
             
-            email_pattern = r'[\w\.-]+@[\w\.-]+\.\w+'
-            match = re.search(email_pattern, bio_text)
-            if match:
-                profile_data["email"] = match.group(0)
-                print(f"Found email: {profile_data['email']}")
+            print(f"Found bio text: {bio_text}")
+            
+            # Look for email in the expanded bio
+            email_pattern = r'[\w.+-]+@[\w-]+\.com'
+            
+            for source in [bio_text, bio_html, driver.page_source]:
+                matches = re.findall(email_pattern, source)
+                if matches:
+                    profile_data["email"] = matches[0]
+                    print(f"Found email: {profile_data['email']}")
+                    break
+                    
+            if not profile_data["email"]:
+                print("No email found in bio")
+                
         except Exception as e:
             print(f"Could not find email: {e}")
+            print(f"Bio text was: {bio_text if 'bio_text' in locals() else 'Not available'}")
 
         return profile_data
             
