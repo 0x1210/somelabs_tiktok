@@ -83,7 +83,9 @@ def get_tiktok_info(url):
         
         print(f"Loading URL: {url}")
         driver.get(url)
-        time.sleep(5)
+        
+        # Initial wait for page load
+        time.sleep(10)
 
         # Try to get name
         try:
@@ -116,23 +118,23 @@ def get_tiktok_info(url):
         except Exception as e:
             print(f"No website link found: {e}")
 
-        # Try to get email from bio with "more" button handling
+        # Try to get email from bio with longer waits
         try:
             print("Attempting to extract bio and email...")
             
-            # First try to click "more" button if it exists
+            # Try to click "more" button if it exists
             try:
-                more_button = WebDriverWait(driver, 5).until(
+                more_button = WebDriverWait(driver, 10).until(
                     EC.presence_of_element_located((By.CSS_SELECTOR, "[data-e2e='expand-button']"))
                 )
                 more_button.click()
                 print("Expanded bio by clicking 'more' button")
-                time.sleep(1)  # Wait for expansion
+                time.sleep(3)
             except Exception as e:
                 print("No 'more' button found or couldn't click it:", e)
             
-            # Now get the expanded bio content
-            bio_element = WebDriverWait(driver, 10).until(
+            # Wait longer for bio element
+            bio_element = WebDriverWait(driver, 15).until(
                 EC.presence_of_element_located((By.CSS_SELECTOR, "[data-e2e='user-bio']"))
             )
             bio_text = bio_element.text
@@ -141,7 +143,7 @@ def get_tiktok_info(url):
             print(f"Found bio text: {bio_text}")
             
             # Look for email in the expanded bio
-            email_pattern = r'[\w.+-]+@[\w-]+\.com'
+            email_pattern = r'[\w.+-]+@[\w-]+\.[\w.-]+(?!\S)'
             
             for source in [bio_text, bio_html, driver.page_source]:
                 matches = re.findall(email_pattern, source)
