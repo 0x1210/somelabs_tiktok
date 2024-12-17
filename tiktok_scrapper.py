@@ -98,21 +98,31 @@ def get_tiktok_info(url):
 
         # Get email from bio
         try:
-            # Wait for page to load
-            time.sleep(5)
+            print("\nDebug: Starting email extraction...")
+            time.sleep(5)  # Wait for page load
             
-            # Get bio text
+            # Try multiple methods to get the full bio content
             bio = driver.find_element(By.CSS_SELECTOR, "[data-e2e='user-bio']")
-            bio_text = bio.text
             
-            # Simple regex to find anything that looks like an email
+            # Try different ways to get the text content
+            bio_sources = [
+                bio.get_attribute('innerHTML'),  # Get raw HTML
+                bio.text,                        # Direct text
+                driver.page_source              # Full page source as last resort
+            ]
+            
+            # Look for email in each source
             email_pattern = r'[\w\.-]+@[\w\.-]+\.\w+'
-            match = re.search(email_pattern, bio_text)
-            if match:
-                profile_data["email"] = match.group(0)
+            for source in bio_sources:
+                print(f"\nDebug: Checking source: '{source[:100]}...'")  # Print first 100 chars
+                match = re.search(email_pattern, source)
+                if match:
+                    profile_data["email"] = match.group(0)
+                    print(f"Debug: Found email: {profile_data['email']}")
+                    break
 
         except Exception as e:
-            print("Could not find email in bio")
+            print(f"Debug: Error finding bio/email: {str(e)}")
 
         return profile_data
             
