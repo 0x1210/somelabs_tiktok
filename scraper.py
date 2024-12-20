@@ -36,7 +36,8 @@ def get_chrome_driver():
     """
     try:
         # For local development, try direct Chrome installation
-        if platform.system() == 'Darwin':  # macOS
+        system = platform.system()  # Get system name as string
+        if system == 'Darwin':  # macOS
             return webdriver.Chrome(options=setup_chrome_options())
         else:  # Linux (DigitalOcean) or Windows
             from webdriver_manager.chrome import ChromeDriverManager
