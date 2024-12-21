@@ -1,3 +1,5 @@
+# scraper.py
+
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
@@ -12,16 +14,14 @@ import os
 
 def setup_chrome_options():
     """
-    Configure Chrome options for server environment
+    Configure Chrome options for both local and server environment
     """
     chrome_options = Options()
     
-    # Server-specific settings
-    chrome_options.binary_location = '/snap/bin/chromium'
+    # Basic settings that work across platforms
     chrome_options.add_argument('--headless=new')
     chrome_options.add_argument('--no-sandbox')
     chrome_options.add_argument('--disable-dev-shm-usage')
-    chrome_options.add_argument("--remote-debugging-port=9222")
     chrome_options.add_argument('--disable-gpu')
     chrome_options.add_argument('--window-size=1920,1080')
     
@@ -32,12 +32,17 @@ def setup_chrome_options():
 
 def get_chrome_driver():
     """
-    Set up ChromeDriver for server environment
+    Set up ChromeDriver based on the platform
     """
     try:
-        chrome_options = setup_chrome_options()
-        driver = webdriver.Chrome(options=chrome_options)
-        return driver
+        # For local development, try direct Chrome installation
+        system = platform.system()  # Get system name as string
+        if system == 'Darwin':  # macOS
+            return webdriver.Chrome(options=setup_chrome_options())
+        else:  # Linux (DigitalOcean) or Windows
+            from webdriver_manager.chrome import ChromeDriverManager
+            service = Service(ChromeDriverManager().install())
+            return webdriver.Chrome(service=service, options=setup_chrome_options())
     except Exception as e:
         print(f"Error setting up Chrome driver: {e}")
         raise
